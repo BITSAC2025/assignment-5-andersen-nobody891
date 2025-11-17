@@ -137,7 +137,7 @@ void Andersen::runPointerAnalysis()
                 for (unsigned obj : pts[n])
                 {
                     // 根据接口：getGepObjVar(对象ID, gepEdge)
-                    unsigned fieldObj = consg->getGepObjVars(obj, gep);
+                    unsigned fieldObj = consg->getGepObjVar(obj, gep);
                     if (pts[x].insert(fieldObj).second)
                         changed = true;
                 }
