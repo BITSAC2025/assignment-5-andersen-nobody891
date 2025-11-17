@@ -44,7 +44,7 @@ void Andersen::runPointerAnalysis()
         unsigned src = nodePair.first;
         SVF::ConstraintNode *node = nodePair.second;
 
-        for (auto edge : node->getAddrOutEdge())
+        for (auto edge : node->getAddrOutEdges())
         {
             if (auto addr = SVF::SVFUtil::dyn_cast<SVF::AddrCGEdge>(edge))
             {
@@ -62,7 +62,7 @@ void Andersen::runPointerAnalysis()
         SVF::ConstraintNode *node = consg->getConstraintNode(n);
 
         // ---------- COPY edges ----------
-        for (auto edge : node->getCopyOutEdge())
+        for (auto edge : node->getCopyOutEdges())
         {
             if (auto cp = SVF::SVFUtil::dyn_cast<SVF::CopyCGEdge>(edge))
             {
@@ -78,7 +78,7 @@ void Andersen::runPointerAnalysis()
         }
 
         // ---------- LOAD edges : n --load--> x  means  x = *n ----------
-        for (auto edge : node->getLoadOutEdge())
+        for (auto edge : node->getLoadOutEdges())
         {
             if (auto ld = SVF::SVFUtil::dyn_cast<SVF::LoadCGEdge>(edge))
             {
@@ -100,7 +100,7 @@ void Andersen::runPointerAnalysis()
         }
 
         // ---------- STORE edges : n --store--> m  means  *m = n ----------
-        for (auto edge : node->getStoreOutEdge())
+        for (auto edge : node->getStoreOutEdges())
         {
             if (auto st = SVF::SVFUtil::dyn_cast<SVF::StoreCGEdge>(edge))
             {
@@ -127,7 +127,7 @@ void Andersen::runPointerAnalysis()
         }
 
         // ---------- GEP edges: n --gep--> x ----------
-        for (auto edge : node->getGepOutEdge())
+        for (auto edge : node->getGepOutEdges())
         {
             if (auto gep = SVF::SVFUtil::dyn_cast<SVF::GepCGEdge>(edge))
             {
@@ -137,7 +137,7 @@ void Andersen::runPointerAnalysis()
                 for (unsigned obj : pts[n])
                 {
                     // 根据接口：getGepObjVar(对象ID, gepEdge)
-                    unsigned fieldObj = consg->getGepObjVar(obj, gep);
+                    unsigned fieldObj = consg->getGepObjVars(obj, gep);
                     if (pts[x].insert(fieldObj).second)
                         changed = true;
                 }
