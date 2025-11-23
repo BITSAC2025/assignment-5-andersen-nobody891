@@ -36,7 +36,7 @@ void Andersen::runPointerAnalysis()
 {
     // TODO: complete this method. Point-to set and worklist are defined in A5Header.h
     //  The implementation of constraint graph is provided in the SVF library
-        WorkList<unsigned> worklist;
+    WorkList<unsigned> worklist;
 
     // ========== 初始化：所有节点加入 worklist ==========
     for (auto it = consg->begin(); it != consg->end(); ++it)
@@ -57,7 +57,7 @@ void Andersen::runPointerAnalysis()
         if (!node) continue;
 
         // 遍历 src 的所有 outgoing edges
-        for (auto eit = node->outEdgeBegin(); eit != node->outEdgeEnd(); ++eit)
+        for (auto eit = node->OutEdgeBegin(); eit != node->OutEdgeEnd(); ++eit)
         {
             SVF::ConstraintEdge* edge = *eit;
 
