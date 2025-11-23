@@ -38,17 +38,14 @@ void Andersen::runPointerAnalysis()
     //  The implementation of constraint graph is provided in the SVF library
     WorkList<unsigned> worklist;
 
-    // ========== 初始化：所有节点加入 worklist ==========
+    // 初始化所有节点
     for (auto it = consg->begin(); it != consg->end(); ++it)
     {
         unsigned id = it->first;
         worklist.push(id);
-
-        // 初始化 pts[id] 为空集合（map 会自动创建）
-        pts[id];
+        pts[id];  // 确保有条目
     }
 
-    // ========== 迭代直到收敛 ==========
     while (!worklist.empty())
     {
         unsigned src = worklist.pop();
@@ -56,18 +53,16 @@ void Andersen::runPointerAnalysis()
         SVF::ConstraintNode* node = consg->getConstraintNode(src);
         if (!node) continue;
 
-        // 遍历 src 的所有 outgoing edges
         for (auto eit = node->OutEdgeBegin(); eit != node->OutEdgeEnd(); ++eit)
         {
             SVF::ConstraintEdge* edge = *eit;
 
-            // ---------------- Copy Edge ----------------
-            if (auto cpy = SVF::dyn_cast<SVF::CopyCGEdge>(edge))
+            // ---------- Copy -----------
+            if (auto cpy = SVF::SVFUtil::dyn_cast<SVF::CopyCGEdge>(edge))
             {
                 unsigned dst = cpy->getDstID();
                 bool changed = false;
 
-                // pts(dst) += pts(src)
                 for (unsigned obj : pts[src])
                 {
                     if (pts[dst].insert(obj).second)
@@ -78,14 +73,13 @@ void Andersen::runPointerAnalysis()
                     worklist.push(dst);
             }
 
-            // ---------------- Gep Edge ----------------
-            else if (auto gep = SVF::dyn_cast<SVF::GepCGEdge>(edge))
+            // ---------- Gep -----------
+            else if (auto gep = SVF::SVFUtil::dyn_cast<SVF::GepCGEdge>(edge))
             {
                 unsigned y = gep->getSrcID();
                 unsigned x = gep->getDstID();
                 bool changed = false;
 
-                // pts(x) += { field(o, gep) | o ∈ pts(y) }
                 for (unsigned obj : pts[y])
                 {
                     unsigned fld = consg->getGepObjVar(obj, gep);
