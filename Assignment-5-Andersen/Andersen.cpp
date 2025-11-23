@@ -36,113 +36,65 @@ void Andersen::runPointerAnalysis()
 {
     // TODO: complete this method. Point-to set and worklist are defined in A5Header.h
     //  The implementation of constraint graph is provided in the SVF library
-    WorkList<unsigned> worklist;
+        WorkList<unsigned> worklist;
 
-    // ---- Step 1: 初始化：处理 AddrOut edges ----
-    for (auto &nodePair : *consg)
+    // ========== 初始化：所有节点加入 worklist ==========
+    for (auto it = consg->begin(); it != consg->end(); ++it)
     {
-        unsigned src = nodePair.first;
-        SVF::ConstraintNode *node = nodePair.second;
+        unsigned id = it->first;
+        worklist.push(id);
 
-        for (auto edge : node->getAddrOutEdges())
-        {
-            if (auto addr = SVF::SVFUtil::dyn_cast<SVF::AddrCGEdge>(edge))
-            {
-                unsigned dst = addr->getDstID();
-                if (pts[src].insert(dst).second)
-                    worklist.push(src);
-            }
-        }
+        // 初始化 pts[id] 为空集合（map 会自动创建）
+        pts[id];
     }
 
-    // ---- Step 2: Worklist propagation ----
+    // ========== 迭代直到收敛 ==========
     while (!worklist.empty())
     {
-        unsigned n = worklist.pop();
-        SVF::ConstraintNode *node = consg->getConstraintNode(n);
+        unsigned src = worklist.pop();
 
-        // ---------- COPY edges ----------
-        for (auto edge : node->getCopyOutEdges())
+        SVF::ConstraintNode* node = consg->getConstraintNode(src);
+        if (!node) continue;
+
+        // 遍历 src 的所有 outgoing edges
+        for (auto eit = node->outEdgeBegin(); eit != node->outEdgeEnd(); ++eit)
         {
-            if (auto cp = SVF::SVFUtil::dyn_cast<SVF::CopyCGEdge>(edge))
+            SVF::ConstraintEdge* edge = *eit;
+
+            // ---------------- Copy Edge ----------------
+            if (auto cpy = SVF::dyn_cast<SVF::CopyCGEdge>(edge))
             {
-                unsigned dst = cp->getDstID();
+                unsigned dst = cpy->getDstID();
                 bool changed = false;
-                for (unsigned p : pts[n])
+
+                // pts(dst) += pts(src)
+                for (unsigned obj : pts[src])
                 {
-                    if (pts[dst].insert(p).second)
+                    if (pts[dst].insert(obj).second)
                         changed = true;
-                }
-                if (changed) worklist.push(dst);
-            }
-        }
-
-        // ---------- LOAD edges : n --load--> x  means  x = *n ----------
-        for (auto edge : node->getLoadOutEdges())
-        {
-            if (auto ld = SVF::SVFUtil::dyn_cast<SVF::LoadCGEdge>(edge))
-            {
-                unsigned x = ld->getDstID();
-                bool changed = false;
-
-                // For every pointee o ∈ pts[n], propagate pts[o] into pts[x]
-                for (unsigned o : pts[n])
-                {
-                    for (unsigned p : pts[o])
-                    {
-                        if (pts[x].insert(p).second)
-                            changed = true;
-                    }
-                }
-
-                if (changed) worklist.push(x);
-            }
-        }
-
-        // ---------- STORE edges : n --store--> m  means  *m = n ----------
-        for (auto edge : node->getStoreOutEdges())
-        {
-            if (auto st = SVF::SVFUtil::dyn_cast<SVF::StoreCGEdge>(edge))
-            {
-                unsigned m = st->getDstID();
-                bool changed = false;
-
-                // For every o ∈ pts[m], propagate pts[n] → pts[o]
-                for (unsigned o : pts[m])
-                {
-                    for (unsigned p : pts[n])
-                    {
-                        if (pts[o].insert(p).second)
-                            changed = true;
-                    }
                 }
 
                 if (changed)
-                {
-                    // push all affected 'o'
-                    for (auto o : pts[m])
-                        worklist.push(o);
-                }
+                    worklist.push(dst);
             }
-        }
 
-        // ---------- GEP edges: n --gep--> x ----------
-        for (auto edge : node->getGepOutEdges())
-        {
-            if (auto gep = SVF::SVFUtil::dyn_cast<SVF::GepCGEdge>(edge))
+            // ---------------- Gep Edge ----------------
+            else if (auto gep = SVF::dyn_cast<SVF::GepCGEdge>(edge))
             {
+                unsigned y = gep->getSrcID();
                 unsigned x = gep->getDstID();
                 bool changed = false;
 
-                for (unsigned obj : pts[n])
+                // pts(x) += { field(o, gep) | o ∈ pts(y) }
+                for (unsigned obj : pts[y])
                 {
-                    // 根据接口：getGepObjVar(对象ID, gepEdge)
-                    unsigned fieldObj = consg->getGepObjVar(obj, gep);
-                    if (pts[x].insert(fieldObj).second)
+                    unsigned fld = consg->getGepObjVar(obj, gep);
+                    if (pts[x].insert(fld).second)
                         changed = true;
                 }
 
-                if (changed) worklist.push(x);
+                if (changed)
+                    worklist.push(x);
             }
         }
     }
